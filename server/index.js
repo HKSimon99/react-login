@@ -1,9 +1,10 @@
 const express = require('express')
 const app = express()
-const port = 3000
+const port = 5000
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const { User } = require('./models/Users');
+const { auth } = require('./middleware/auth');
 const config = require('./config/key');
 
 // application/x-www-form-urlencoded -> 해석
@@ -24,7 +25,7 @@ app.get('/', (req, res) => {
     res.send('Hello World! HKSIMON')
 })
 
-app.post('/register', (req, res) => {
+app.post('/api/users/register', (req, res) => {
     // 회원가입할때 필요한 정보들을 client에서 가져오고 database에 넣어준다.
     const user = new User(req.body)
 
@@ -37,7 +38,7 @@ app.post('/register', (req, res) => {
 })
 
 
-app.post('/login', (req, res) => {
+app.post('/api/users/login', (req, res) => {
     // 요청된 이메일을 DB에서 찾는다
     User.findOne({ email: req.body.email }, (err, user) => {
         if (!user) {
@@ -64,6 +65,35 @@ app.post('/login', (req, res) => {
         })
     })
 })
+
+
+
+app.get('api/users/auth', auth, (req, res) => {
+    //여기까지 온다면 미들웨어 auth를 통과한것 (Auth: True라는 말)
+    res.status(200).json({
+        _id: req.user._id,
+        //role이 0이면 일반유저, 아니면 관리자
+        isAdmin: req.user.role === 0 ? false : true,
+        isAuth: true,
+        email: req.user.email,
+        name: req.user.name,
+        lastName: req.user.lastName,
+        role: req.user.role,
+        image: req.user.image
+    })
+})
+
+
+
+app.get('/api/users/logout', auth, (req, res) => {
+    User.findOneAndUpdate({ _id: req.user._id },
+        { token: "" }, (err, user) => {
+            if (err) return res.json({ success: false, err });
+            return res.status(200).send({ success: true })
+        }
+    )
+})
+
 
 
 app.listen(port, () => {
